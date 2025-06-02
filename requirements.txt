@@ -1,1 +1,3 @@
+dotenv
+firecrawl-py
 streamlit
