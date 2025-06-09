@@ -19,15 +19,3 @@
 - ✅ Simple and elegant UI using **Streamlit**.
 
 ---
-
-## 📸 Sample Output
-
-```text
-🔍 Company Insights AI
-Company Identified: PolicyBazaar
-Logo + Name displayed
-Category-wise AI analysis with updates:
-✅ Fetched Financials
-✅ Fetched Description
-✅ Fetched Funding Info
-✅ Fetched News
