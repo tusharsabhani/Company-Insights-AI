@@ -62,15 +62,12 @@ async def analyse_company(company_name, display_fn=print):
 				time.sleep(60)
 			crawled_data[f"{category}_data"] = crawled_data_array
 			display_fn(f"✅ Finished crawling {category.capitalize()}")
-			# time.sleep(60)  # Adding a delay to avoid hitting rate limits
-			
-		# for key in crawled_data:
+			time.sleep(60)  # Adding a delay to avoid hitting rate limits
 
 		# crawled_data['financials_data'][0].data[0].markdown
 		
 		for key in crawled_data.keys():
 			pages = []
-			print(key)
 			if len(crawled_data[key]) > 0:
 				for crawled_page in crawled_data[key]:
 					pages.append(crawled_page.data[0].markdown)
@@ -94,43 +91,52 @@ async def analyse_openai(crawled_data):
 			timeout=900
 		)
 
-		output_format = {
-					"financials": "<summary_para_financials>",
-					"description": "<summary_para_description>",
-					"funding": "<summary_para_funding>",
-					"news": "<summary_para_news>"
-					}
-		
-		prompt = f'''Here is the input for analysis:
-				1. financials: {crawled_data["financials_data"]}
-				2. description: {crawled_data["description_data"]}
-				3. funding: {crawled_data["funding_data"]}
-				4. news: {crawled_data["news_data"]}
+		system_message = (
+			"You are a structured data summarization assistant. "
+			"Generate a concise summary paragraph that highlights key insights or trends "
+			"from the provided input. Use clear, natural language suitable for the given category."
+		)
+
+		async def call_openai(category, data):
+			prompt = f'''Here is the input for analysis:
+				{category}: {data}
 
 				Task:
-				- For each of the four lists above:
-				• Iterate through its elements.
-				• Write a concise summary paragraph capturing the key insights or trends.
-				• Use clear, natural language appropriate for each category.
-				- Output exactly one JSON object with the format: {output_format}
+				- Iterate through the list above.
+				- Write a concise summary paragraph capturing the key insights or trends.
+				- Use clear, natural language appropriate for the "{category}" category.
+				- Output only the summary text. No JSON, no headers.'''
+			
+			response = await client.chat.completions.create(
+				model="gpt-4o",
+				response_format={"type": "text"},
+				seed=33,
+				temperature=0.1,
+				timeout=900,
+				messages=[
+					{"role": "system", "content": system_message},
+					{"role": "user", "content": prompt}
+				]
+			)
 
-				No additional keys or text. Only return the JSON.'''
-		
-		response = await client.chat.completions.create(
-			model="gpt-4o",
-			response_format={"type": "json_object"},
-			seed=33,
-			temperature=0.1,
-			timeout=900,
-			messages=[
-				{"role": "system", "content": f'''ADDDDDDDDDD'''},
-				{"role": "user", "content": prompt}])
+			return response.choices[0].message.content.strip()
 
-		return json.loads(response.choices[0].message.content)
+		financials_summary = await call_openai("financials", crawled_data["financials_data"])
+		description_summary = await call_openai("description", crawled_data["description_data"])
+		funding_summary = await call_openai("funding", crawled_data["funding_data"])
+		news_summary = await call_openai("news", crawled_data["news_data"])
+
+		return {
+			"financials": financials_summary,
+			"description": description_summary,
+			"funding": funding_summary,
+			"news": news_summary
+		}
 
 	except Exception as e:
 		print(f"Exception in analyse_openai - {e}")
 		return None
+
 
 
 if __name__ == "__main__":
